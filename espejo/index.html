@@ -1,46 +1,63 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
-  </head>
-  <body>
-    <h1>Mirror Image Tensors</h1>
-    <h3>Simple Tensor Reverse</h3>
-    <div>
-      <img id="lemonade" src="/lemonade.jpg" />
-      <canvas id="lemonadeCanvas" />
-    </div>
-    <h3>Batch flipLeftRight</h3>
-    <div>
-      <img id="cake" src="/cake.jpg" />
-      <canvas id="cakeCanvas"></canvas>
-    </div>
-    <a href="/">Back to index</a>
-    <script>
-      window.addEventListener('load', function () {
-        // Simple Tensor Flip
-        const lemonadeImage = document.getElementById('lemonade')
-        const lemonadeCanvas = document.getElementById('lemonadeCanvas')
-        const lemonadeTensor = tf.browser.fromPixels(lemonadeImage)
-        const flippedLemonadeTensor = tf.reverse(lemonadeTensor, 1)
-        tf.browser.toPixels(flippedLemonadeTensor, lemonadeCanvas).then(() => {
-          lemonadeTensor.dispose()
-          flippedLemonadeTensor.dispose()
-        })
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Imágenes con TensorFlow.js</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
 
-        // Batch Tensor Flip
-        const cakeImage = document.getElementById('cake')
-        const cakeCanvas = document.getElementById('cakeCanvas')
-        const flipCake = tf.tidy(() => {
-          const cakeTensor = tf.expandDims(
-            tf.browser.fromPixels(cakeImage).asType('float32')
-          )
-          return tf.squeeze(tf.image.flipLeftRight(cakeTensor)).asType('int32')
-        })
-        tf.browser.toPixels(flipCake, cakeCanvas).then(() => {
-          flipCake.dispose()
-        })
+</head>
+<body>
+    <h1>Manipulación de Imágenes con TensorFlow.js</h1>
+
+    <h2>Imagen Original</h2>
+    <img id="inputImage" src="lemonade.jpg" alt="Imagen Original" crossorigin="anonymous">
+
+    <h2>Foto Recortada</h2>
+    <canvas id="croppedImage"></canvas>
+
+    <h2>Cambio de tamaño (resizeBilinear) Imagen un poco más suave</h2>
+    <canvas id="resizedImageBilinear"></canvas>
+
+    <h2>Cambio de tamaño (resizeNearestNeighbor) Imagen un poco más nítida</h2>
+    <canvas id="resizedImageNearestNeighbor"></canvas>
+
+    <h2>Foto modo espejo (resizeBilinear)</h2>
+    <canvas id="flippedImage"></canvas>
+
+
+    <script>
+      document.addEventListener('DOMContentLoaded', async function processImage() {
+          const imageElement = document.getElementById('inputImage');
+
+          // Convertir la imagen a un tensor
+          const imageTensor = tf.browser.fromPixels(imageElement).toFloat().div(tf.scalar(255));
+
+          // Recortar la imagen al centro
+          const [height, width] = [imageTensor.shape[0], imageTensor.shape[1]];
+          const boxes = [[0.25, 0.25, 0.75, 0.75]];  // Coordenadas del recorte (y1, x1, y2, x2)
+          const boxInd = [0];
+          const cropSize = [Math.floor(height / 2), Math.floor(width / 2)];
+          const croppedTensor = tf.image.cropAndResize(imageTensor.expandDims(0), boxes, boxInd, cropSize).squeeze();
+
+          // Mostrar la imagen recortada
+          const croppedCanvas = document.getElementById('croppedImage');
+          await tf.browser.toPixels(croppedTensor, croppedCanvas);
+
+          // Cambiar el tamaño de la imagen con tf.image.resizeBilinear
+          const resizedBilinearTensor = tf.image.resizeBilinear(croppedTensor, [100, 100]);
+          const resizedBilinearCanvas = document.getElementById('resizedImageBilinear');
+          await tf.browser.toPixels(resizedBilinearTensor, resizedBilinearCanvas);
+
+          // Cambiar el tamaño de la imagen con tf.image.resizeNearestNeighbor
+          const resizedNearestNeighborTensor = tf.image.resizeNearestNeighbor(croppedTensor, [100, 100]);
+          const resizedNearestNeighborCanvas = document.getElementById('resizedImageNearestNeighbor');
+          await tf.browser.toPixels(resizedNearestNeighborTensor, resizedNearestNeighborCanvas);
+
+          // Reflejar la imagen redimensionada (usando resizeBilinear)
+          const flippedTensor = tf.image.flipLeftRight(resizedBilinearTensor.expandDims(0)).squeeze();
+          const flippedCanvas = document.getElementById('flippedImage');
+          await tf.browser.toPixels(flippedTensor, flippedCanvas);
       })
-    </script>
-  </body>
+  </script>
+</body>
 </html>
